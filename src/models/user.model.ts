@@ -1,10 +1,12 @@
 import mongoose, { Document, Schema } from "mongoose";
-
+import { IAvatar } from "./avatar.model";
 interface IUser extends Document {
   name: string;
   phone : string;
   email : string;
   password: string;
+  gender : string;
+  avatar : IAvatar['_id'];
   status : string;
   profilePicture: string;
   isActive: boolean; 
@@ -30,6 +32,14 @@ const userSchema = new Schema<IUser>(
     },
     password: {
       type: String,
+    },
+    gender: {
+      type: String,
+      enum: ["male", "female"],
+    },
+    avatar: {
+      type: Schema.Types.ObjectId,
+      ref: "Avatar",
     },
     profilePicture: {
       type: String,

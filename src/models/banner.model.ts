@@ -14,7 +14,7 @@ const bannerSchema = new Schema<IBanner>(
       type: String,
       required: true,
     },
-    category: {
+    category: { 
       type: Schema.Types.ObjectId,
       ref: 'Category',
       required: true,

@@ -7,7 +7,7 @@ import { OAuth2Client } from "google-auth-library";
 
 dotenv.config();
 
-const JWT_KEY : string  = process.env.JWT_KEY as string;
+const JWT_KEY : string  = process.env.JWT_USER_KEY as string;
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -115,9 +115,14 @@ const login = async (req: Request, res: Response) => {
         }
         const isMatch = await bcrypt.compare(password, user.password);
         if(!isMatch){
+            console.log("password not matched");
+            
             return res.status(400).json({message : "Invalid Password"});
         }
+    
         const token = jwt.sign({id : user._id}, JWT_KEY);
+        console.log("token", token);
+        
         res.status(200).json({user : user, token : token});
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
@@ -133,4 +138,4 @@ const logout = async (req: Request, res: Response) => {
     res.status(200).json({ message: "Logout successful" });
 }   
 
-export { register, login, logout, google_signin, google_signup };
+export { register, login, logout, google_signin, google_signup};
