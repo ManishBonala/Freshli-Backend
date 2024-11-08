@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import Product from "../models/product.model";
 import Category from "../models/categories.model";
-import { log } from "console";
 
 interface QueryParams {
   category?: string;
@@ -10,6 +9,7 @@ interface QueryParams {
   page?: string; // These will be strings as they come from the query string
   limit?: string;
   offset?: string;
+  filters?: string;
 }
 
 export const createProduct = async (req: Request, res: Response) => {
@@ -169,40 +169,122 @@ export const getClientProducts = async (
 ) => {
   try {
     const {
-      category: categorySlug,
+      filters,
       searchParam,
       limit = "5",
       offset = "0",
     } = req.query;
+
     const query: any = {};
-    if (categorySlug) {
-      const category = await Category.findOne({ slug: categorySlug });
-      if (category) {
-        query.category = category._id;
+
+    console.log(req.query.filters);
+    
+    
+    // Parse filters if they exist
+    if (filters) {
+      const parsedFilters = JSON.parse(filters as string);
+      
+      // Category filter
+      if (parsedFilters.category) {
+        const category = await Category.findOne({ slug: parsedFilters.category });
+        if (category) {
+          query.category = category._id;
+        }
+      }
+      
+      // Price filter
+      if (parsedFilters.price) {
+        console.log("parsedFilters.price",parsedFilters.price);
+        const priceString = (parsedFilters.price as string).replace(/\$/g, "");
+        console.log("priceString",priceString);
+        
+        if (priceString.endsWith('+')) {
+          // Handle cases like "$200+"
+          const minPrice = parseInt(priceString.replace('+', ''));
+          query.price = { $gte: minPrice };
+        } else if (priceString.includes('-')) {
+          // Handle range cases like "$100-$200"
+          const [min, max] = priceString.split('-');
+          query.price = { $gte: parseInt(min), $lte: parseInt(max) };
+        }
+      }
+      
+      // Rating filter
+      if (parsedFilters.rating) {
+        query.rating = { $gte: parseInt(parsedFilters.rating) };
+      }
+      
+      // Discount filter
+      if (parsedFilters.discount) {
+        query.discount = { $gte: parseInt(parsedFilters.discount) };
       }
     }
+
+    // Search parameter
     if (searchParam) {
       query.$or = [{ name: { $regex: new RegExp(searchParam, "i") } }];
     }
+
+    console.log("query",query);
+    
+
     const products = await Product.find(query)
       .populate("category", "name slug")
       .skip(parseInt(offset))
       .limit(parseInt(limit));
 
-    const total = await Product.countDocuments(query);
-    res
-      .status(200)
-      .json({
-        products,
-        total,
-        limit: parseInt(limit),
-      });
+    const totalCount = await Product.countDocuments(query);
+    res.status(200).json({ products, totalCount });
   } catch (error) {
-    res
-      .status(404)
-      .json({ message: "Products not found", error: (error as Error).message });
+    res.status(404).json({ 
+      message: "Products not found", 
+      error: (error as Error).message 
+    });
   }
 };
+
+// export const getClientProducts = async (
+//   req: Request<{}, {}, {}, QueryParams>,
+//   res: Response
+// ) => {
+//   try {
+//     const {
+//       category: categorySlug,
+//       searchParam,
+//       limit = "5",
+//       offset = "0",
+//     } = req.query;
+//     const query: any = {};
+
+//     console.log(req.query);
+    
+//     if (categorySlug) {
+//       const category = await Category.findOne({ slug: categorySlug });
+//       if (category) {
+//         query.category = category._id;
+//       }
+//     }
+//     if (searchParam) {
+//       query.$or = [{ name: { $regex: new RegExp(searchParam, "i") } }];
+//     }
+//     const products = await Product.find(query)
+//       .populate("category", "name slug")
+//       .skip(parseInt(offset))
+//       .limit(parseInt(limit));
+
+//     const totalCount = await Product.countDocuments(query);
+//     res
+//       .status(200)
+//       .json({
+//         products,
+//         totalCount,
+//       });
+//   } catch (error) {
+//     res
+//       .status(404)
+//       .json({ message: "Products not found", error: (error as Error).message });
+//   }
+// };
 
 export const updateProduct = async (req: Request, res: Response) => {
   const { id } = req.params;
